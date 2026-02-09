@@ -4,6 +4,8 @@ import 'package:logitrack_app/delivery_task_model.dart';
 import 'package:logitrack_app/auth_service.dart';
 import 'package:logitrack_app/delivery_detail_page.dart';
 import 'package:logitrack_app/qr_scanner_page.dart';
+import 'package:provider/provider.dart';
+import 'package:logitrack_app/delivery_task_provider.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -38,11 +40,12 @@ class DashboardPage extends StatefulWidget {
   late Future<List<DeliveryTask>> tasksFuture;
 
   @override
-  void initState() {
-    super.initState();
-    // 3. Panggil API dan simpan future-nya ke variabel
-    tasksFuture = apiService.fetchDeliveryTasks();
-  }
+void initState() {
+  super.initState();
+  // Panggil method fetchTasks dari provider
+  // listen: false sangat penting di initState
+  Provider.of<DeliveryTaskProvider>(context, listen: false).fetchTasks();
+}
 
   @override
   Widget build(BuildContext context) {
@@ -65,50 +68,34 @@ class DashboardPage extends StatefulWidget {
           ),
         ],
       ),
-      body: FutureBuilder<List<DeliveryTask>>( 
-        future: tasksFuture, // Gunakan future dari state
-        builder: (context, snapshot) {
-          // Kondisi 1: Saat data sedang dimuat
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          // Kondisi 2: Jika terjadi error
-          else if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
-          // Kondisi 3: Jika data berhasil dimuat dan tidak kosong
-          else if (snapshot.hasData) { 
-            final tasks = snapshot.data!; 
-            // Panggil ListView.builder di sini
-            return ListView.builder(
-              itemCount: tasks.length, 
-              itemBuilder: (context, index) { 
-                final task = tasks[index]; 
-                return Card( 
-                  margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16), 
-                  child: ListTile( 
-                    leading: Icon( 
-                      task.isCompleted ? Icons.check_circle : Icons.radio_button_unchecked, 
-                      color: task.isCompleted ? Colors.green : Colors.grey, 
+      body: Consumer<DeliveryTaskProvider>(
+        builder: (context, provider, child) {
+          // Gunakan switch-case pada state enum
+          switch (provider.state) {
+            case TaskState.Loading:
+              return const Center(child: CircularProgressIndicator());
+              
+            case TaskState.Error:
+              return Center(child: Text('Error: ${provider.errorMessage}'));
+              
+            case TaskState.Loaded:
+              return ListView.builder(
+                itemCount: provider.tasks.length,
+                itemBuilder: (context, index) {
+                  final task = provider.tasks[index];
+                  return Card(
+                    // ... styling Card
+                    child: ListTile(
+                      title: Text(task.title),
+                      subtitle: Text('ID: ${task.id}'),
+                      // ... sisa implementasi ListTile
                     ),
-                    title: Text(task.title), 
-                    subtitle: Text('ID Tugas: ${task.id}'), 
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => DeliveryDetailPage(task: task),
-                        ),
-                      );
-                    },
-                  ),
-                );
-              },
-            );
-          }
-          // Kondisi 4: Jika data kosong atau state lainnya
-          else { 
-            return const Center(child: Text('Tidak ada data pengiriman.')); 
+                  );
+                },
+              );
+              
+            default: // Initial state
+              return const Center(child: Text('Memulai...'));
           }
         },
       ),

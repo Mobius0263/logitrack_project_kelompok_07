@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:provider/provider.dart';
 import 'package:logitrack_app/firebase_options.dart';
 import 'package:logitrack_app/auth_gate.dart';
+import 'package:logitrack_app/delivery_task_provider.dart';
 // Import file login_page.dart
 
 void main() async {
