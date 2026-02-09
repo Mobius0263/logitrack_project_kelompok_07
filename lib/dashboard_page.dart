@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:logitrack_app/api_service.dart';
 import 'package:logitrack_app/delivery_task_model.dart';
 import 'package:logitrack_app/auth_service.dart';
-import 'package:logitrack_app/delivery_detail_page.dart';
 import 'package:logitrack_app/qr_scanner_page.dart';
 import 'package:provider/provider.dart';
 import 'package:logitrack_app/delivery_task_provider.dart';
