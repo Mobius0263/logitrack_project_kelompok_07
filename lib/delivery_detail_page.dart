@@ -4,6 +4,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:logitrack_app/delivery_task_model.dart';
 import 'package:logitrack_app/geolocator.dart';
+import 'package:provider/provider.dart';
+import 'package:logitrack_app/delivery_task_provider.dart';
 
 class DeliveryDetailPage extends StatefulWidget {
   final DeliveryTask task;
@@ -46,6 +48,16 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
       _currentPosition = position;
     });
 
+    // Panggil Provider untuk update status task beserta data bukti
+    if (mounted) {
+      Provider.of<DeliveryTaskProvider>(context, listen: false).completeTask(
+        widget.task.id,
+        proofImagePath: _imageFile?.path,
+        latitude: position.latitude,
+        longitude: position.longitude,
+      );
+    }
+
     // Show success notification
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Pengiriman Selesai di Lat: ${position.latitude}, Lon: ${position.longitude}')),
@@ -60,18 +72,34 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Ambil data terbaru dari Provider berdasarkan ID
+    // Ini memastikan status ter-update secara real-time saat tombol selesai ditekan
+    final currentTask = context.select<DeliveryTaskProvider, DeliveryTask>((provider) {
+      return provider.tasks.firstWhere(
+        (t) => t.id == widget.task.id,
+        orElse: () => widget.task,
+      );
+    });
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('Detail: ${widget.task.id}'),
+        title: Text('Detail: ${currentTask.id}'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(widget.task.title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            Text(currentTask.title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            Text('Status: ${widget.task.isCompleted ? "Selesai" : "Dalam Proses"}'),
+            Text(
+              'Status: ${currentTask.isCompleted ? "Selesai" : "Dalam Proses"}',
+              style: TextStyle(
+                fontSize: 16,
+                color: currentTask.isCompleted ? Colors.green : Colors.orange,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             const SizedBox(height: 24),
             const Text('Bukti Pengiriman:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
@@ -84,9 +112,11 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
                 border: Border.all(color: Colors.grey),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: _imageFile == null
-                  ? const Center(child: Text('Belum ada gambar'))
-                  : Image.file(File(_imageFile!.path), fit: BoxFit.cover),
+              child: _imageFile != null
+                  ? Image.file(File(_imageFile!.path), fit: BoxFit.cover)
+                  : (currentTask.proofImagePath != null
+                      ? Image.file(File(currentTask.proofImagePath!), fit: BoxFit.cover)
+                      : const Center(child: Text('Belum ada gambar'))),
             ),
             
             const SizedBox(height: 24),
@@ -106,11 +136,15 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
             // Widget to display location data
             if (_currentPosition != null)
               Text(
-                'Lokasi Terekam:\nLat: ${_currentPosition!.latitude}\nLon: ${_currentPosition!.longitude}',
+                'Lokasi Baru Terekam:\nLat: ${_currentPosition!.latitude}\nLon: ${_currentPosition!.longitude}',
                 style: const TextStyle(fontSize: 16, color: Colors.green),
-              ),
-
-            if (_currentPosition == null)
+              )
+            else if (currentTask.latitude != null && currentTask.longitude != null)
+              Text(
+                'Lokasi Tersimpan:\nLat: ${currentTask.latitude}\nLon: ${currentTask.longitude}',
+                style: const TextStyle(fontSize: 16, color: Colors.blue),
+              )
+            else
               const Text(
                 'Lokasi belum direkam.',
                 style: TextStyle(fontSize: 16, fontStyle: FontStyle.italic),

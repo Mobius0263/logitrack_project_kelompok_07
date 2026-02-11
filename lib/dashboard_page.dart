@@ -3,6 +3,7 @@ import 'package:logitrack_app/api_service.dart';
 import 'package:logitrack_app/delivery_task_model.dart';
 import 'package:logitrack_app/auth_service.dart';
 import 'package:logitrack_app/qr_scanner_page.dart';
+import 'package:logitrack_app/delivery_detail_page.dart';
 import 'package:provider/provider.dart';
 import 'package:logitrack_app/delivery_task_provider.dart';
 
@@ -37,14 +38,25 @@ class DashboardPage extends StatefulWidget {
 
   // 2. Buat variabel untuk menampung hasil dari future
   late Future<List<DeliveryTask>> tasksFuture;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
 
   @override
-void initState() {
-  super.initState();
-  // Panggil method fetchTasks dari provider
-  // listen: false sangat penting di initState
-  Provider.of<DeliveryTaskProvider>(context, listen: false).fetchTasks();
-}
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // Panggil method fetchTasks dari provider setelah frame selesai dibangun
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        Provider.of<DeliveryTaskProvider>(context, listen: false).fetchTasks();
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -78,19 +90,68 @@ void initState() {
               return Center(child: Text('Error: ${provider.errorMessage}'));
               
             case TaskState.Loaded:
-              return ListView.builder(
-                itemCount: provider.tasks.length,
-                itemBuilder: (context, index) {
-                  final task = provider.tasks[index];
-                  return Card(
-                    // ... styling Card
-                    child: ListTile(
-                      title: Text(task.title),
-                      subtitle: Text('ID: ${task.id}'),
-                      // ... sisa implementasi ListTile
+              final filteredTasks = provider.tasks.where((task) {
+                final query = _searchQuery.toLowerCase();
+                return task.title.toLowerCase().contains(query) || 
+                       task.id.toString().contains(query);
+              }).toList();
+
+              return Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: const InputDecoration(
+                        labelText: 'Cari Pengiriman (ID atau Nama)',
+                        prefixIcon: Icon(Icons.search),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(12)),
+                        ),
+                      ),
+                      onChanged: (value) {
+                        setState(() {
+                          _searchQuery = value;
+                        });
+                      },
                     ),
-                  );
-                },
+                  ),
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: filteredTasks.length,
+                      itemBuilder: (context, index) {
+                        final task = filteredTasks[index];
+                        return Card(
+                          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          color: task.isCompleted ? Colors.green.shade50 : null,
+                          child: ListTile(
+                            leading: Icon(
+                              task.isCompleted ? Icons.check_circle : Icons.local_shipping,
+                              color: task.isCompleted ? Colors.green : Colors.blue,
+                            ),
+                            title: Text(
+                              task.title,
+                              style: TextStyle(
+                                decoration: task.isCompleted ? TextDecoration.lineThrough : null,
+                              ),
+                            ),
+                            subtitle: Text(task.isCompleted ? 'Status: Selesai' : 'ID: ${task.id}'),
+                            trailing: const Icon(Icons.arrow_forward_ios),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => DeliveryDetailPage(task: task),
+                                ),
+                              );
+                            },
+                            // ... sisa implementasi ListTile
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
               );
               
             default: // Initial state

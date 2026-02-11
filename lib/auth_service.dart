@@ -11,8 +11,8 @@ class AuthService {
       );
       return result.user;
     } catch (e) {
-      print(e.toString());
-      return null;
+      // Re-throw exception agar UI bisa menangkap pesan error spesifik
+      rethrow;
     }
   }
 
@@ -24,8 +24,8 @@ class AuthService {
       );
       return result.user;
     } catch (e) {
-      print(e.toString());
-      return null;
+      // Re-throw exception agar UI bisa menangkap pesan error spesifik
+      rethrow;
     }
   }
 

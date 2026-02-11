@@ -20,25 +20,40 @@ void handleLogin() async {
       isLoading = true; // 1. Mulai Loading
     });
     
-    // Panggil service otentikasi (pastikan sudah ada)
-    User? user = await _authService.signInWithEmailAndPassword(
-      _emailController.text,
-      _passwordController.text,
-    );
-    
-    if (!mounted) return; // Cek jika widget masih ada
-    
-    if (user == null) {
-      // Tampilkan error jika login gagal
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Login gagal. Periksa kembali kredensial Anda.')),
+    try {
+      // Panggil service otentikasi
+      await _authService.signInWithEmailAndPassword(
+        _emailController.text,
+        _passwordController.text,
       );
+      // Jika berhasil, AuthGate akan menangani navigasi
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
       
-      setState(() {
-        isLoading = false; // 2. Hentikan Loading
-      });
+      String message = 'Login gagal.';
+      if (e.code == 'user-not-found') {
+        message = 'Pengguna tidak ditemukan.';
+      } else if (e.code == 'wrong-password') {
+        message = 'Password salah.';
+      } else {
+        message = 'Error: ${e.message}';
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Terjadi kesalahan: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false; // 2. Pastikan Loading berhenti apapun yang terjadi
+        });
+      }
     }
-    // Navigasi akan ditangani secara otomatis oleh AuthGate
   }
 }
 
@@ -125,31 +140,39 @@ final AuthService _authService = AuthService();
             
             // 4. Tambahkan Tombol Login
             // Bungkus dengan SizedBox agar bisa mengatur lebar tombol
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 300), // Durasi animasi
-              width: isLoading ? 50 : double.infinity, // Lebar berubah
-              height: 50,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  // Sesuaikan shape agar menjadi lingkaran saat loading
-                  shape: isLoading
-                      ? const CircleBorder()
-                      : RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                // Nonaktifkan tombol saat loading
-                onPressed: isLoading ? null : handleLogin, 
-                child: isLoading
-                    ? const Center(
-                        child: CircularProgressIndicator(
-                          color: Colors.white, 
-                          strokeWidth: 3,
-                        ),
-                      )
-                    : const Text(
-                        'Login',
-                        style: TextStyle(fontSize: 18),
-                      ),
-              ),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 300), // Durasi animasi
+                  width: isLoading ? 50 : constraints.maxWidth, // Gunakan constraints.maxWidth daripada double.infinity
+                  height: 50,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      // Hapus padding saat loading agar bentuk lingkaran sempurna dan konten muat
+                      padding: isLoading ? EdgeInsets.zero : const EdgeInsets.symmetric(vertical: 16),
+                      // Sesuaikan shape agar menjadi lingkaran saat loading
+                      shape: isLoading
+                          ? const CircleBorder()
+                          : RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    // Nonaktifkan tombol saat loading
+                    onPressed: isLoading ? null : handleLogin, 
+                    child: isLoading
+                        ? const SizedBox(
+                            height: 24,
+                            width: 24,
+                            child: CircularProgressIndicator(
+                              color: Colors.white, 
+                              strokeWidth: 3,
+                            ),
+                          )
+                        : const Text(
+                            'Login',
+                            style: TextStyle(fontSize: 18),
+                          ),
+                  ),
+                );
+              }
             ),
             const SizedBox(height: 16), // Memberi jarak vertikal
             
